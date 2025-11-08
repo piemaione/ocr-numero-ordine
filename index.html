@@ -20,7 +20,7 @@
 
 <body class="bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
   <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-md text-center">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine</h1>
+    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine e ringrazia Pietro</h1>
 
     <!-- Upload -->
     <label class="block mb-4">
@@ -99,13 +99,17 @@
           }
         });
 
+        console.log("Testo OCR:", text);
+
         // --- Pulizia testo OCR ---
-        let cleaned = text.replace(/[–—−]/g, "-"); // sostituisce trattini strani
-        cleaned = cleaned.replace(/O/g, "0");       // converte O in 0
-        cleaned = cleaned.replace(/\s+/g, "");      // rimuove spazi o newline
+        let cleaned = text.replace(/[–—−]/g, "-") // trattini strani
+                          .replace(/O/g, "0")     // O -> 0
+                          .replace(/\s+/g, "");   // rimuove spazi e newline
+
+        console.log("Testo pulito:", cleaned);
 
         // --- Regex flessibile ---
-        const match = cleaned.match(/\d{3}-?\d{7}-?\d{7}/);
+        const match = cleaned.match(/\d{3}-\d{7}-\d{7}/);
 
         progressBar.style.width = '100%';
 
@@ -113,7 +117,9 @@
           const orderNumber = match[0];
           resultDiv.textContent = `Numero trovato: ${orderNumber}`;
           statusDiv.textContent = '✅ Copiato negli appunti e generato codice a barre!';
-          await navigator.clipboard.writeText(orderNumber);
+
+          // Copia negli appunti
+          try { await navigator.clipboard.writeText(orderNumber); } catch {}
 
           // Mostra pulsante copia
           copyBtn.classList.remove('hidden');
