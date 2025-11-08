@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCR Numero Ordine</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
+  <div class="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full text-center">
+    <h1 class="text-2xl font-bold mb-4">🔍 Estrai Numero Ordine</h1>
+    <input type="file" accept="image/*" id="imageInput" class="mb-4 w-full border p-2 rounded" />
+    <div id="result" class="text-lg font-mono text-green-600 mb-2"></div>
+    <div id="status" class="text-gray-500 text-sm"></div>
+  </div>
+
+  <script>
+    const input = document.getElementById('imageInput');
+    const resultDiv = document.getElementById('result');
+    const statusDiv = document.getElementById('status');
+
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      statusDiv.textContent = '🔄 Analizzando immagine...';
+      resultDiv.textContent = '';
+
+      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+        logger: m => console.log(m)
+      });
+
+      const match = text.match(/\d{3}-\d{7}-\d{7}/);
+      if (match) {
+        const orderNumber = match[0];
+        resultDiv.textContent = `Numero trovato: ${orderNumber}`;
+        statusDiv.textContent = '✅ Copiato negli appunti!';
+        navigator.clipboard.writeText(orderNumber);
+      } else {
+        resultDiv.textContent = '❌ Nessun numero d’ordine trovato.';
+        statusDiv.textContent = '';
+      }
+    });
+  </script>
+</body>
+</html>
