@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OCR Numero Ordine</title>
 
-  <!-- Librerie -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -21,34 +20,30 @@
   <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-md text-center">
     <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine</h1>
 
-    <!-- Upload -->
     <label class="block mb-4">
       <input type="file" accept="image/*" id="imageInput"
         class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900 file:text-blue-700 dark:file:text-blue-200 hover:file:bg-blue-200 dark:hover:file:bg-blue-800" />
     </label>
 
-    <!-- Anteprima -->
     <div id="previewContainer" class="hidden mb-4">
       <img id="previewImage" alt="Anteprima immagine" class="mx-auto max-h-48 rounded-xl border dark:border-gray-700" />
     </div>
 
-    <!-- Barra di progresso -->
     <div id="progressContainer" class="hidden w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-4">
       <div id="progressBar" class="bg-blue-500 h-3 rounded-full w-0 transition-all"></div>
     </div>
 
-    <!-- Stato -->
     <div id="status" class="text-sm text-gray-600 dark:text-gray-300 mb-2"></div>
 
-    <!-- Risultato -->
+    <!-- Tutto il testo OCR -->
+    <div id="ocrText" class="text-sm font-mono text-gray-700 dark:text-gray-300 mb-3 text-left max-h-48 overflow-auto border p-2 rounded-md"></div>
+
     <div id="result" class="text-lg font-mono text-green-600 dark:text-green-400 mb-3"></div>
 
-    <!-- Barcode -->
     <div id="barcodeContainer" class="hidden mb-3">
       <svg id="barcode"></svg>
     </div>
 
-    <!-- Pulsante copia -->
     <button id="copyBtn"
       class="hidden bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-700 transition">
       📋 Copia di nuovo
@@ -66,12 +61,12 @@
     const copyBtn = document.getElementById('copyBtn');
     const barcodeContainer = document.getElementById('barcodeContainer');
     const barcode = document.getElementById('barcode');
+    const ocrTextDiv = document.getElementById('ocrText');
 
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Mostra anteprima immagine
       const reader = new FileReader();
       reader.onload = () => {
         previewContainer.classList.remove('hidden');
@@ -83,6 +78,7 @@
       resultDiv.textContent = '';
       copyBtn.classList.add('hidden');
       barcodeContainer.classList.add('hidden');
+      ocrTextDiv.textContent = '';
       progressContainer.classList.remove('hidden');
       progressBar.style.width = '0%';
       statusDiv.textContent = '🔄 Analizzando immagine...';
@@ -98,19 +94,15 @@
           }
         });
 
-        // Debug: vedi testo OCR
-        console.log("OCR raw text:", text);
+        // Mostra tutto il testo OCR
+        ocrTextDiv.textContent = text;
 
-        // --- Pulizia testo OCR ---
-        let cleaned = text.replace(/[–—−]/g, "-")   // trattini strani → normale
-                          .replace(/O/g, "0")       // O → 0
-                          .replace(/\s+/g, "");     // rimuove spazi e newline
+        // Pulizia testo per estrazione numero d’ordine
+        let cleaned = text.replace(/[–—−]/g, "-")
+                          .replace(/O/g, "0")
+                          .replace(/\s+/g, "");
 
-        console.log("Cleaned text:", cleaned);
-
-        // --- Regex flessibile per numero d’ordine ---
         const match = cleaned.match(/\d{3}-\d{7}-\d{7}/);
-
         progressBar.style.width = '100%';
 
         if (match) {
@@ -119,14 +111,12 @@
           statusDiv.textContent = '✅ Copiato negli appunti e generato codice a barre!';
           await navigator.clipboard.writeText(orderNumber);
 
-          // Mostra pulsante copia
           copyBtn.classList.remove('hidden');
           copyBtn.onclick = () => {
             navigator.clipboard.writeText(orderNumber);
             statusDiv.textContent = '📋 Copiato di nuovo!';
           };
 
-          // Genera barcode
           JsBarcode("#barcode", orderNumber, {
             format: "CODE128",
             lineColor: "#22c55e",
