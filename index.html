@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OCR Numero Ordine - Debug completo</title>
+  <title>OCR Numero Ordine - Debug e Robustezza</title>
 
-  <!-- Librerie -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -14,69 +13,101 @@
     // Tema automatico (segue il tema del dispositivo)
     tailwind.config = { darkMode: 'media' };
   </script>
+
+  <style>
+    /* Stile per l'input file su Firefox (per uniformità) */
+    input[type="file"]::file-selector-button {
+      margin-right: 1rem;
+      padding: 0.5rem 1rem;
+      border: 0;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background-color: var(--file-bg);
+      color: var(--file-color);
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: background-color 0.15s ease-in-out;
+    }
+
+    input[type="file"]:hover::file-selector-button {
+      background-color: var(--file-hover-bg);
+    }
+    
+    /* Variabili CSS personalizzate per il tema dinamico */
+    .file-input-light {
+      --file-bg: #E0F2FE; /* blue-100 */
+      --file-color: #1D4ED8; /* blue-700 */
+      --file-hover-bg: #BAE6FD; /* blue-200 */
+    }
+    .file-input-dark {
+      --file-bg: #1E3A8A; /* blue-900 */
+      --file-color: #DBEAFE; /* blue-200 */
+      --file-hover-bg: #1E40AF; /* blue-800 */
+    }
+
+    /* Applica le variabili in base al tema di Tailwind */
+    .dark .file-input-light,
+    .file-input-dark {
+      /* Fallback/Default */
+    }
+    .file-input-light {
+      /* Mantiene variabili light per default */
+    }
+  </style>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
   <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-2xl text-center">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine — Debug</h1>
+    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine — Robustezza OCR</h1>
 
-    <!-- Upload -->
     <label class="block mb-4">
       <input type="file" accept="image/*" id="imageInput"
-        class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900 file:text-blue-700 dark:file:text-blue-200 hover:file:bg-blue-200 dark:hover:file:bg-blue-800" />
+        class="block w-full text-sm text-gray-700 dark:text-gray-200 file-input-light dark:file-input-dark" />
     </label>
 
-    <!-- Anteprima -->
     <div id="previewContainer" class="hidden mb-4">
       <img id="previewImage" alt="Anteprima immagine" class="mx-auto max-h-48 rounded-xl border dark:border-gray-700" />
     </div>
 
-    <!-- Barra di progresso -->
     <div id="progressContainer" class="hidden w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-4">
-      <div id="progressBar" class="bg-blue-500 h-3 rounded-full w-0"></div>
+      <div id="progressBar" class="bg-blue-500 h-3 rounded-full w-0 transition-all duration-300"></div>
     </div>
 
-    <!-- Stato -->
-    <div id="status" class="text-sm text-gray-600 dark:text-gray-300 mb-2"></div>
+    <div id="status" class="text-sm text-gray-600 dark:text-gray-300 mb-2 font-semibold"></div>
 
-    <!-- Risultato principale -->
-    <div id="result" class="text-lg font-mono text-green-600 dark:text-green-400 mb-3"></div>
+    <div id="result" class="text-2xl font-mono text-green-600 dark:text-green-400 mb-4 break-all"></div>
 
-    <!-- Barcode -->
     <div id="barcodeContainer" class="hidden mb-3">
       <svg id="barcode"></svg>
     </div>
 
-    <!-- Pulsante copia ordine -->
-    <div class="flex justify-center gap-3 mb-3">
+    <div class="flex flex-wrap justify-center gap-3 mb-3">
       <button id="copyBtn"
-        class="hidden bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-700 transition">
-        📋 Copia numero
+        class="hidden bg-green-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-green-700 transition">
+        📋 Copia Numero Formattato
+      </button>
+
+      <button id="copyCleanBtn"
+        class="hidden bg-blue-500 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-600 transition">
+        📋 Copia RAW Cleaned
       </button>
 
       <button id="copyRawBtn"
         class="hidden bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-gray-700 transition">
         📋 Copia RAW
       </button>
-
-      <button id="copyCleanBtn"
-        class="hidden bg-gray-500 text-white font-semibold py-2 px-4 rounded-xl hover:bg-gray-600 transition">
-        📋 Copia CLEANED
-      </button>
     </div>
 
-    <!-- Area debug: RAW e CLEANED -->
-    <div id="debugArea" class="hidden text-left">
-      <h2 class="font-semibold mb-2 text-gray-800 dark:text-gray-100">📄 OCR RAW (esatto):</h2>
+    <div id="debugArea" class="hidden text-left mt-4">
+      <h2 class="font-semibold mb-2 text-gray-800 dark:text-gray-100 border-t pt-4 dark:border-gray-700">📄 OCR RAW (Testo Grezzo):</h2>
       <pre id="rawText" class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-3 rounded mb-3 max-h-40 overflow-auto text-sm"></pre>
 
       <h2 class="font-semibold mb-2 text-gray-800 dark:text-gray-100">🔧 CLEANED (dopo pulizie automatiche):</h2>
       <pre id="cleanedText" class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-3 rounded mb-3 max-h-40 overflow-auto text-sm"></pre>
     </div>
 
-    <!-- Piccolo help -->
     <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-      Nota: la copia negli appunti funziona solo su HTTPS o localhost in molti browser.
+      Nota: la copia negli appunti funziona solo su HTTPS o localhost.
     </div>
   </div>
 
@@ -96,21 +127,24 @@
     const rawTextPre = document.getElementById('rawText');
     const cleanedTextPre = document.getElementById('cleanedText');
 
+    // Funzione per copiare negli appunti
+    const copyToClipboard = async (text, successMsg, failMsg) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        statusDiv.textContent = `📋 ${successMsg}`;
+      } catch (err) {
+        console.warn('Clipboard fallita', err);
+        statusDiv.textContent = `⚠️ ${failMsg}`;
+      }
+    };
+
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Mostra anteprima
-      const reader = new FileReader();
-      reader.onload = () => {
-        previewContainer.classList.remove('hidden');
-        previewImage.src = reader.result;
-      };
-      reader.readAsDataURL(file);
-
       // Reset UI
       resultDiv.textContent = '';
-      statusDiv.textContent = '🔄 Analizzando immagine...';
+      statusDiv.textContent = '🔄 Preparazione all’analisi...';
       copyBtn.classList.add('hidden');
       copyRawBtn.classList.add('hidden');
       copyCleanBtn.classList.add('hidden');
@@ -120,15 +154,27 @@
       cleanedTextPre.textContent = '';
       progressContainer.classList.remove('hidden');
       progressBar.style.width = '0%';
+      previewContainer.classList.add('hidden'); // Nasconde l'anteprima finché non è pronta
+
+      // Mostra anteprima
+      const reader = new FileReader();
+      reader.onload = () => {
+        previewContainer.classList.remove('hidden');
+        previewImage.src = reader.result;
+      };
+      reader.readAsDataURL(file);
 
       try {
+        statusDiv.textContent = '🧠 Caricamento Tesseract e riconoscimento...';
+        
+        // Esegui OCR
         const { data: { text } } = await Tesseract.recognize(file, 'eng', {
           logger: m => {
             // Aggiorna progress bar su riconoscimento testo
-            if (m.status === 'recognizing text') {
+            if (m.status === 'recognizing text' || m.status === 'loading language traineddata') {
               const progress = Math.round(m.progress * 100);
               progressBar.style.width = `${progress}%`;
-              statusDiv.textContent = `🧠 Riconoscimento in corso... ${progress}%`;
+              statusDiv.textContent = `🧠 ${m.status.replace('recognizing text', 'Riconoscimento in corso...').replace('loading language traineddata', 'Caricamento dati lingua...')} ${progress}%`;
             }
           }
         });
@@ -137,81 +183,92 @@
         console.log('OCR RAW TEXT:', text);
         rawTextPre.textContent = text || '(vuoto)';
 
-        // --- Pulizia testo OCR ---
+        // Controllo immediato se l'OCR ha fallito completamente
+        if (!text || text.trim().length < 5) {
+             resultDiv.textContent = '❌ Nessun testo utile rilevato.';
+             statusDiv.textContent = '⚠️ OCR fallito: Il testo è vuoto o troppo corto. Prova con una foto più nitida o ritagliata.';
+             debugArea.classList.remove('hidden');
+             return; 
+        }
+
+        // --- Pulizia testo OCR (PIÙ ROBUSTA) ---
+        // Sostituisce caratteri ambigui e rimuove tutti gli spazi
         let cleaned = (text || '')
-          .replace(/[–—−]/g, "-")   // sostituisce trattini strani
-          .replace(/[OOo]/g, "0")   // O/o -> 0 (numero zero)
-          .replace(/[l|I]/g, "1")   // l o I -> 1 (se utile)
-          .replace(/\s+/g, "");     // rimuove spazi e newline
+          .replace(/[–—−]/g, "-")  // sostituisce trattini strani
+          .replace(/[OOo]/g, "0")  // O/o -> 0 (numero zero)
+          .replace(/[l|I]/g, "1")  // l o I -> 1 (se utile)
+          .replace(/\s+/g, "");    // rimuove spazi e newline
+          
         cleanedTextPre.textContent = cleaned || '(vuoto)';
         console.log('CLEANED TEXT:', cleaned);
 
         // --- Regex flessibile per il numero d'ordine ---
-        // formato atteso: 3 cifre - 7 cifre - 7 cifre (es. 402-4204768-5658754)
-        const match = cleaned.match(/\d{3}-?\d{7}-?\d{7}/);
+        // Formato atteso: 3 cifre - 7 cifre - 7 cifre (es. 402-4204768-5658754)
+        // La Regex cerca i tre gruppi di cifre, ignorando i trattini/non-cifre tra di loro (es. 402_4204768_5658754)
+        const match = cleaned.match(/(\d{3})[^\d]*(\d{7})[^\d]*(\d{7})/);
 
         progressBar.style.width = '100%';
 
         if (match) {
-          const orderNumber = match[0];
-          resultDiv.textContent = `✅ Numero trovato: ${orderNumber}`;
-          statusDiv.textContent = 'Numero copiato (se permesso) e barcode generato.';
+          // Ricompone il numero nel formato standard (###-#######-#######)
+          const orderPart1 = match[1];
+          const orderPart2 = match[2];
+          const orderPart3 = match[3];
+          const orderNumberFormatted = `${orderPart1}-${orderPart2}-${orderPart3}`;
+          const orderNumberRaw = `${orderPart1}${orderPart2}${orderPart3}`;
 
-          // prova a copiare negli appunti (può fallire su HTTP)
-          try { await navigator.clipboard.writeText(orderNumber); } catch(e) { console.warn('Clipboard fallita', e); }
+          resultDiv.textContent = `✅ Numero trovato: ${orderNumberFormatted}`;
+          
+          // Tenta di copiare negli appunti automaticamente il formato standard
+          await copyToClipboard(orderNumberFormatted, 'Numero copiato (se permesso) e barcode generato.', 'Numero trovato, ma copia automatica fallita.');
 
-          // mostra e abilita pulsante copia numero
+          // mostra e abilita pulsanti copia
           copyBtn.classList.remove('hidden');
-          copyBtn.onclick = async () => {
-            try { await navigator.clipboard.writeText(orderNumber); statusDiv.textContent = '📋 Numero copiato di nuovo!'; }
-            catch (err) { statusDiv.textContent = '⚠️ Impossibile copiare.'; }
-          };
+          copyBtn.onclick = () => copyToClipboard(orderNumberFormatted, 'Numero Formattato copiato di nuovo!', 'Impossibile copiare il Formattato.');
 
-          // genera barcode
+          copyCleanBtn.classList.remove('hidden');
+          copyCleanBtn.onclick = () => copyToClipboard(cleaned, 'CLEANED copiato!', 'Impossibile copiare CLEANED.');
+
+          copyRawBtn.classList.remove('hidden');
+          copyRawBtn.onclick = () => copyToClipboard(rawTextPre.textContent, 'RAW copiato!', 'Impossibile copiare RAW.');
+
+
+          // genera barcode (usa la versione RAW senza trattini per CODE128)
           try {
-            JsBarcode("#barcode", orderNumber, {
+            JsBarcode("#barcode", orderNumberRaw, {
               format: "CODE128",
               lineColor: "#111827",
               background: "transparent",
               width: 2,
               height: 60,
-              displayValue: true
+              displayValue: true // Mostra il numero sotto il codice
             });
             barcodeContainer.classList.remove('hidden');
           } catch (err) {
             console.warn('Errore JsBarcode', err);
+            statusDiv.textContent += ' ⚠️ Errore durante la generazione del barcode.';
           }
 
-          // mostra debug anche se trovato (utile)
+          // mostra debug
           debugArea.classList.remove('hidden');
-          copyRawBtn.classList.remove('hidden');
-          copyCleanBtn.classList.remove('hidden');
 
         } else {
           // Nessun match: mostra tutto ciò che ha letto
           resultDiv.textContent = '❌ Nessun numero d’ordine trovato.';
-          statusDiv.textContent = 'Mostro il testo RAW e quello pulito (usa copia per salvarli).';
+          statusDiv.textContent = 'Mostro il testo RAW e quello pulito. La Regex non ha trovato il formato atteso.';
 
-          // mostra area debug con RAW e CLEANED
+          // mostra area debug con RAW e CLEANED e pulsanti copia per debug
           debugArea.classList.remove('hidden');
-
-          // mostra pulsanti copia per RAW e CLEANED
           copyRawBtn.classList.remove('hidden');
-          copyRawBtn.onclick = async () => {
-            try { await navigator.clipboard.writeText(rawTextPre.textContent); statusDiv.textContent = '📋 RAW copiato!'; }
-            catch (err) { statusDiv.textContent = '⚠️ Impossibile copiare RAW.'; }
-          };
-
+          copyRawBtn.onclick = () => copyToClipboard(rawTextPre.textContent, 'RAW copiato!', 'Impossibile copiare RAW.');
           copyCleanBtn.classList.remove('hidden');
-          copyCleanBtn.onclick = async () => {
-            try { await navigator.clipboard.writeText(cleanedTextPre.textContent); statusDiv.textContent = '📋 CLEANED copiato!'; }
-            catch (err) { statusDiv.textContent = '⚠️ Impossibile copiare CLEANED.'; }
-          };
+          copyCleanBtn.onclick = () => copyToClipboard(cleanedTextPre.textContent, 'CLEANED copiato!', 'Impossibile copiare CLEANED.');
         }
 
       } catch (error) {
         console.error(error);
-        statusDiv.textContent = '⚠️ Errore durante l’analisi.';
+        statusDiv.textContent = '⚠️ Errore grave durante l’analisi.';
+        resultDiv.textContent = `Errore: ${error.message}`;
       } finally {
         progressContainer.classList.add('hidden');
       }
