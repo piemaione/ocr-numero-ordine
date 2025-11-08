@@ -4,42 +4,136 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OCR Numero Ordine</title>
+
+  <!-- Librerie -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    // Attiva dark mode automatica
+    tailwind.config = {
+      darkMode: 'media', // Usa tema del dispositivo
+    };
+  </script>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
-  <div class="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full text-center">
-    <h1 class="text-2xl font-bold mb-4">🔍 Estrai Numero Ordine</h1>
-    <input type="file" accept="image/*" id="imageInput" class="mb-4 w-full border p-2 rounded" />
-    <div id="result" class="text-lg font-mono text-green-600 mb-2"></div>
-    <div id="status" class="text-gray-500 text-sm"></div>
+
+<body class="bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
+  <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-md text-center">
+    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine</h1>
+
+    <!-- Upload -->
+    <label class="block mb-4">
+      <input type="file" accept="image/*" id="imageInput"
+        class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900 file:text-blue-700 dark:file:text-blue-200 hover:file:bg-blue-200 dark:hover:file:bg-blue-800" />
+    </label>
+
+    <!-- Anteprima -->
+    <div id="previewContainer" class="hidden mb-4">
+      <img id="previewImage" alt="Anteprima immagine" class="mx-auto max-h-48 rounded-xl border dark:border-gray-700" />
+    </div>
+
+    <!-- Barra di progresso -->
+    <div id="progressContainer" class="hidden w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-4">
+      <div id="progressBar" class="bg-blue-500 h-3 rounded-full w-0"></div>
+    </div>
+
+    <!-- Stato -->
+    <div id="status" class="text-sm text-gray-600 dark:text-gray-300 mb-2"></div>
+
+    <!-- Risultato -->
+    <div id="result" class="text-lg font-mono text-green-600 dark:text-green-400 mb-3"></div>
+
+    <!-- Barcode -->
+    <div id="barcodeContainer" class="hidden mb-3">
+      <svg id="barcode"></svg>
+    </div>
+
+    <!-- Pulsante copia -->
+    <button id="copyBtn"
+      class="hidden bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-700 transition">
+      📋 Copia di nuovo
+    </button>
   </div>
 
   <script>
     const input = document.getElementById('imageInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewImage = document.getElementById('previewImage');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
     const resultDiv = document.getElementById('result');
     const statusDiv = document.getElementById('status');
+    const copyBtn = document.getElementById('copyBtn');
+    const barcodeContainer = document.getElementById('barcodeContainer');
+    const barcode = document.getElementById('barcode');
 
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      statusDiv.textContent = '🔄 Analizzando immagine...';
+      // Mostra anteprima
+      const reader = new FileReader();
+      reader.onload = () => {
+        previewContainer.classList.remove('hidden');
+        previewImage.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+
+      // Reset UI
       resultDiv.textContent = '';
+      copyBtn.classList.add('hidden');
+      barcodeContainer.classList.add('hidden');
+      progressContainer.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      statusDiv.textContent = '🔄 Analizzando immagine...';
 
-      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-        logger: m => console.log(m)
-      });
+      try {
+        const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              const progress = Math.round(m.progress * 100);
+              progressBar.style.width = `${progress}%`;
+              statusDiv.textContent = `🧠 Riconoscimento in corso... ${progress}%`;
+            }
+          }
+        });
 
-      const match = text.match(/\d{3}-\d{7}-\d{7}/);
-      if (match) {
-        const orderNumber = match[0];
-        resultDiv.textContent = `Numero trovato: ${orderNumber}`;
-        statusDiv.textContent = '✅ Copiato negli appunti!';
-        navigator.clipboard.writeText(orderNumber);
-      } else {
-        resultDiv.textContent = '❌ Nessun numero d’ordine trovato.';
-        statusDiv.textContent = '';
+        progressBar.style.width = '100%';
+        const match = text.match(/\d{3}-\d{7}-\d{7}/);
+
+        if (match) {
+          const orderNumber = match[0];
+          resultDiv.textContent = `Numero trovato: ${orderNumber}`;
+          statusDiv.textContent = '✅ Copiato negli appunti e generato codice a barre!';
+          await navigator.clipboard.writeText(orderNumber);
+
+          // Mostra pulsante copia
+          copyBtn.classList.remove('hidden');
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(orderNumber);
+            statusDiv.textContent = '📋 Copiato di nuovo!';
+          };
+
+          // Genera barcode
+          JsBarcode("#barcode", orderNumber, {
+            format: "CODE128",
+            lineColor: "#22c55e",
+            background: "transparent",
+            width: 2,
+            height: 60,
+            displayValue: true
+          });
+          barcodeContainer.classList.remove('hidden');
+        } else {
+          resultDiv.textContent = '❌ Nessun numero d’ordine trovato.';
+          statusDiv.textContent = '';
+        }
+      } catch (error) {
+        console.error(error);
+        statusDiv.textContent = '⚠️ Errore durante l’analisi.';
+      } finally {
+        progressContainer.classList.add('hidden');
       }
     });
   </script>
