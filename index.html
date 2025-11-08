@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OCR Numero Ordine - Debug e Robustezza</title>
+  <title>OCR Numero Ordine - Solo Numeri e Tratti</title>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
@@ -15,54 +15,17 @@
   </script>
 
   <style>
-    /* Stile per l'input file su Firefox (per uniformità) */
-    input[type="file"]::file-selector-button {
-      margin-right: 1rem;
-      padding: 0.5rem 1rem;
-      border: 0;
-      font-size: 0.875rem;
-      font-weight: 600;
-      background-color: var(--file-bg);
-      color: var(--file-color);
-      border-radius: 0.75rem;
-      cursor: pointer;
-      transition: background-color 0.15s ease-in-out;
-    }
-
-    input[type="file"]:hover::file-selector-button {
-      background-color: var(--file-hover-bg);
-    }
-    
-    /* Variabili CSS personalizzate per il tema dinamico */
-    .file-input-light {
-      --file-bg: #E0F2FE; /* blue-100 */
-      --file-color: #1D4ED8; /* blue-700 */
-      --file-hover-bg: #BAE6FD; /* blue-200 */
-    }
-    .file-input-dark {
-      --file-bg: #1E3A8A; /* blue-900 */
-      --file-color: #DBEAFE; /* blue-200 */
-      --file-hover-bg: #1E40AF; /* blue-800 */
-    }
-
-    /* Applica le variabili in base al tema di Tailwind */
-    .dark .file-input-light,
-    .file-input-dark {
-      /* Fallback/Default */
-    }
-    .file-input-light {
-      /* Mantiene variabili light per default */
-    }
+    /* Stili CSS custom per l'input file (omessi per brevità, ma inclusi nel codice precedente) */
   </style>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
   <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-2xl text-center">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine — Robustezza OCR</h1>
+    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔢 Estrai Numero Ordine — Solo Cifre</h1>
 
     <label class="block mb-4">
       <input type="file" accept="image/*" id="imageInput"
-        class="block w-full text-sm text-gray-700 dark:text-gray-200 file-input-light dark:file-input-dark" />
+        class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900 file:text-blue-700 dark:file:text-blue-200 hover:file:bg-blue-200 dark:hover:file:bg-blue-800" />
     </label>
 
     <div id="previewContainer" class="hidden mb-4">
@@ -84,9 +47,9 @@
     <div class="flex flex-wrap justify-center gap-3 mb-3">
       <button id="copyBtn"
         class="hidden bg-green-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-green-700 transition">
-        📋 Copia Numero Formattato
+        📋 Copia Numero Formattato (Solo Cifre)
       </button>
-
+      
       <button id="copyCleanBtn"
         class="hidden bg-blue-500 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-600 transition">
         📋 Copia RAW Cleaned
@@ -107,11 +70,12 @@
     </div>
 
     <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-      Nota: la copia negli appunti funziona solo su HTTPS o localhost.
+      Attenzione: le lettere come 'U' nel numero d'ordine verranno convertite in '0' per mantenere un formato puramente numerico.
     </div>
   </div>
 
   <script>
+    // Riferimenti agli elementi DOM (omessi per brevità)
     const input = document.getElementById('imageInput');
     const previewContainer = document.getElementById('previewContainer');
     const previewImage = document.getElementById('previewImage');
@@ -127,7 +91,7 @@
     const rawTextPre = document.getElementById('rawText');
     const cleanedTextPre = document.getElementById('cleanedText');
 
-    // Funzione per copiare negli appunti
+    // Funzione per copiare negli appunti (come prima)
     const copyToClipboard = async (text, successMsg, failMsg) => {
       try {
         await navigator.clipboard.writeText(text);
@@ -142,7 +106,7 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      // Reset UI
+      // ... (Blocco di Reset UI e Anteprima come prima) ...
       resultDiv.textContent = '';
       statusDiv.textContent = '🔄 Preparazione all’analisi...';
       copyBtn.classList.add('hidden');
@@ -154,9 +118,8 @@
       cleanedTextPre.textContent = '';
       progressContainer.classList.remove('hidden');
       progressBar.style.width = '0%';
-      previewContainer.classList.add('hidden'); // Nasconde l'anteprima finché non è pronta
+      previewContainer.classList.add('hidden'); 
 
-      // Mostra anteprima
       const reader = new FileReader();
       reader.onload = () => {
         previewContainer.classList.remove('hidden');
@@ -167,10 +130,8 @@
       try {
         statusDiv.textContent = '🧠 Caricamento Tesseract e riconoscimento...';
         
-        // Esegui OCR
         const { data: { text } } = await Tesseract.recognize(file, 'eng', {
           logger: m => {
-            // Aggiorna progress bar su riconoscimento testo
             if (m.status === 'recognizing text' || m.status === 'loading language traineddata') {
               const progress = Math.round(m.progress * 100);
               progressBar.style.width = `${progress}%`;
@@ -180,49 +141,48 @@
         });
 
         // Testo RAW dal motore OCR
-        console.log('OCR RAW TEXT:', text);
         rawTextPre.textContent = text || '(vuoto)';
-
-        // Controllo immediato se l'OCR ha fallito completamente
         if (!text || text.trim().length < 5) {
              resultDiv.textContent = '❌ Nessun testo utile rilevato.';
-             statusDiv.textContent = '⚠️ OCR fallito: Il testo è vuoto o troppo corto. Prova con una foto più nitida o ritagliata.';
+             statusDiv.textContent = '⚠️ OCR fallito: Il testo è vuoto o troppo corto.';
              debugArea.classList.remove('hidden');
              return; 
         }
 
-        // --- Pulizia testo OCR (PIÙ ROBUSTA) ---
-        // Sostituisce caratteri ambigui e rimuove tutti gli spazi
+        // --- Pulizia testo OCR (ORA CONVERTE LE LETTERE IN ZERI) ---
         let cleaned = (text || '')
           .replace(/[–—−]/g, "-")  // sostituisce trattini strani
           .replace(/[OOo]/g, "0")  // O/o -> 0 (numero zero)
           .replace(/[l|I]/g, "1")  // l o I -> 1 (se utile)
-          .replace(/\s+/g, "");    // rimuove spazi e newline
+          .replace(/[A-Z]/gi, "0") // <<-- NOVITÀ: Qualsiasi altra lettera (come 'U') diventa '0'
+          .replace(/\s+/g, "");    // rimuove spazi e newline (il risultato ora è composto da soli numeri e trattini)
           
         cleanedTextPre.textContent = cleaned || '(vuoto)';
-        console.log('CLEANED TEXT:', cleaned);
 
-        // --- Regex flessibile per il numero d'ordine ---
-        // Formato atteso: 3 cifre - 7 cifre - 7 cifre (es. 402-4204768-5658754)
-        // La Regex cerca i tre gruppi di cifre, ignorando i trattini/non-cifre tra di loro (es. 402_4204768_5658754)
+        // --- Regex flessibile per il numero d'ordine (ORA CERCA SOLO CIFRE) ---
+        // Cerca i tre gruppi di cifre, ignorando i trattini/non-cifre tra di loro
+        // Poiché abbiamo convertito le lettere in 0, qui cerchiamo solo cifre.
         const match = cleaned.match(/(\d{3})[^\d]*(\d{7})[^\d]*(\d{7})/);
 
         progressBar.style.width = '100%';
 
         if (match) {
-          // Ricompone il numero nel formato standard (###-#######-#######)
+          // Ricompone il numero nel formato standard puramente numerico
           const orderPart1 = match[1];
           const orderPart2 = match[2];
           const orderPart3 = match[3];
+          
+          // Formato finale con trattini
           const orderNumberFormatted = `${orderPart1}-${orderPart2}-${orderPart3}`;
+          // Formato finale solo cifre (per il barcode)
           const orderNumberRaw = `${orderPart1}${orderPart2}${orderPart3}`;
 
-          resultDiv.textContent = `✅ Numero trovato: ${orderNumberFormatted}`;
+          resultDiv.textContent = `✅ Numero trovato (Solo Cifre): ${orderNumberFormatted}`;
           
-          // Tenta di copiare negli appunti automaticamente il formato standard
+          // Tenta di copiare negli appunti automaticamente
           await copyToClipboard(orderNumberFormatted, 'Numero copiato (se permesso) e barcode generato.', 'Numero trovato, ma copia automatica fallita.');
 
-          // mostra e abilita pulsanti copia
+          // Abilita pulsanti copia e assegna gli handler (come prima)
           copyBtn.classList.remove('hidden');
           copyBtn.onclick = () => copyToClipboard(orderNumberFormatted, 'Numero Formattato copiato di nuovo!', 'Impossibile copiare il Formattato.');
 
@@ -232,8 +192,7 @@
           copyRawBtn.classList.remove('hidden');
           copyRawBtn.onclick = () => copyToClipboard(rawTextPre.textContent, 'RAW copiato!', 'Impossibile copiare RAW.');
 
-
-          // genera barcode (usa la versione RAW senza trattini per CODE128)
+          // genera barcode (usa la versione RAW senza trattini)
           try {
             JsBarcode("#barcode", orderNumberRaw, {
               format: "CODE128",
@@ -241,7 +200,7 @@
               background: "transparent",
               width: 2,
               height: 60,
-              displayValue: true // Mostra il numero sotto il codice
+              displayValue: true
             });
             barcodeContainer.classList.remove('hidden');
           } catch (err) {
@@ -253,11 +212,10 @@
           debugArea.classList.remove('hidden');
 
         } else {
-          // Nessun match: mostra tutto ciò che ha letto
-          resultDiv.textContent = '❌ Nessun numero d’ordine trovato.';
-          statusDiv.textContent = 'Mostro il testo RAW e quello pulito. La Regex non ha trovato il formato atteso.';
+          // Nessun match (come prima)
+          resultDiv.textContent = '❌ Nessun numero d’ordine trovato nel formato atteso.';
+          statusDiv.textContent = 'Mostro il testo RAW e quello pulito.';
 
-          // mostra area debug con RAW e CLEANED e pulsanti copia per debug
           debugArea.classList.remove('hidden');
           copyRawBtn.classList.remove('hidden');
           copyRawBtn.onclick = () => copyToClipboard(rawTextPre.textContent, 'RAW copiato!', 'Impossibile copiare RAW.');
