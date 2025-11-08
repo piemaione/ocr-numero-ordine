@@ -11,7 +11,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <script>
-    // Tema automatico (segue il tema del dispositivo)
     tailwind.config = {
       darkMode: 'media',
     };
@@ -20,7 +19,7 @@
 
 <body class="bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
   <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-md text-center">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine e ringrazia Pietro</h1>
+    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine</h1>
 
     <!-- Upload -->
     <label class="block mb-4">
@@ -35,7 +34,7 @@
 
     <!-- Barra di progresso -->
     <div id="progressContainer" class="hidden w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-4">
-      <div id="progressBar" class="bg-blue-500 h-3 rounded-full w-0"></div>
+      <div id="progressBar" class="bg-blue-500 h-3 rounded-full w-0 transition-all"></div>
     </div>
 
     <!-- Stato -->
@@ -72,7 +71,7 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      // Mostra anteprima
+      // Mostra anteprima immagine
       const reader = new FileReader();
       reader.onload = () => {
         previewContainer.classList.remove('hidden');
@@ -99,16 +98,17 @@
           }
         });
 
-        console.log("Testo OCR:", text);
+        // Debug: vedi testo OCR
+        console.log("OCR raw text:", text);
 
         // --- Pulizia testo OCR ---
-        let cleaned = text.replace(/[–—−]/g, "-") // trattini strani
-                          .replace(/O/g, "0")     // O -> 0
-                          .replace(/\s+/g, "");   // rimuove spazi e newline
+        let cleaned = text.replace(/[–—−]/g, "-")   // trattini strani → normale
+                          .replace(/O/g, "0")       // O → 0
+                          .replace(/\s+/g, "");     // rimuove spazi e newline
 
-        console.log("Testo pulito:", cleaned);
+        console.log("Cleaned text:", cleaned);
 
-        // --- Regex flessibile ---
+        // --- Regex flessibile per numero d’ordine ---
         const match = cleaned.match(/\d{3}-\d{7}-\d{7}/);
 
         progressBar.style.width = '100%';
@@ -117,9 +117,7 @@
           const orderNumber = match[0];
           resultDiv.textContent = `Numero trovato: ${orderNumber}`;
           statusDiv.textContent = '✅ Copiato negli appunti e generato codice a barre!';
-
-          // Copia negli appunti
-          try { await navigator.clipboard.writeText(orderNumber); } catch {}
+          await navigator.clipboard.writeText(orderNumber);
 
           // Mostra pulsante copia
           copyBtn.classList.remove('hidden');
