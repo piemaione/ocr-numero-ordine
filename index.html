@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OCR Numero Ordine</title>
+  <title>OCR Numero Ordine - Debug completo</title>
 
   <!-- Librerie -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -17,8 +17,8 @@
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
-  <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-md text-center">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine</h1>
+  <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 w-full max-w-2xl text-center">
+    <h1 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">🔍 Estrai Numero Ordine — Debug</h1>
 
     <!-- Upload -->
     <label class="block mb-4">
@@ -39,7 +39,7 @@
     <!-- Stato -->
     <div id="status" class="text-sm text-gray-600 dark:text-gray-300 mb-2"></div>
 
-    <!-- Risultato -->
+    <!-- Risultato principale -->
     <div id="result" class="text-lg font-mono text-green-600 dark:text-green-400 mb-3"></div>
 
     <!-- Barcode -->
@@ -47,11 +47,37 @@
       <svg id="barcode"></svg>
     </div>
 
-    <!-- Pulsante copia -->
-    <button id="copyBtn"
-      class="hidden bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-700 transition">
-      📋 Copia di nuovo
-    </button>
+    <!-- Pulsante copia ordine -->
+    <div class="flex justify-center gap-3 mb-3">
+      <button id="copyBtn"
+        class="hidden bg-blue-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-blue-700 transition">
+        📋 Copia numero
+      </button>
+
+      <button id="copyRawBtn"
+        class="hidden bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl hover:bg-gray-700 transition">
+        📋 Copia RAW
+      </button>
+
+      <button id="copyCleanBtn"
+        class="hidden bg-gray-500 text-white font-semibold py-2 px-4 rounded-xl hover:bg-gray-600 transition">
+        📋 Copia CLEANED
+      </button>
+    </div>
+
+    <!-- Area debug: RAW e CLEANED -->
+    <div id="debugArea" class="hidden text-left">
+      <h2 class="font-semibold mb-2 text-gray-800 dark:text-gray-100">📄 OCR RAW (esatto):</h2>
+      <pre id="rawText" class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-3 rounded mb-3 max-h-40 overflow-auto text-sm"></pre>
+
+      <h2 class="font-semibold mb-2 text-gray-800 dark:text-gray-100">🔧 CLEANED (dopo pulizie automatiche):</h2>
+      <pre id="cleanedText" class="whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-3 rounded mb-3 max-h-40 overflow-auto text-sm"></pre>
+    </div>
+
+    <!-- Piccolo help -->
+    <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+      Nota: la copia negli appunti funziona solo su HTTPS o localhost in molti browser.
+    </div>
   </div>
 
   <script>
@@ -63,8 +89,12 @@
     const resultDiv = document.getElementById('result');
     const statusDiv = document.getElementById('status');
     const copyBtn = document.getElementById('copyBtn');
+    const copyRawBtn = document.getElementById('copyRawBtn');
+    const copyCleanBtn = document.getElementById('copyCleanBtn');
     const barcodeContainer = document.getElementById('barcodeContainer');
-    const barcode = document.getElementById('barcode');
+    const debugArea = document.getElementById('debugArea');
+    const rawTextPre = document.getElementById('rawText');
+    const cleanedTextPre = document.getElementById('cleanedText');
 
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -80,15 +110,21 @@
 
       // Reset UI
       resultDiv.textContent = '';
+      statusDiv.textContent = '🔄 Analizzando immagine...';
       copyBtn.classList.add('hidden');
+      copyRawBtn.classList.add('hidden');
+      copyCleanBtn.classList.add('hidden');
       barcodeContainer.classList.add('hidden');
+      debugArea.classList.add('hidden');
+      rawTextPre.textContent = '';
+      cleanedTextPre.textContent = '';
       progressContainer.classList.remove('hidden');
       progressBar.style.width = '0%';
-      statusDiv.textContent = '🔄 Analizzando immagine...';
 
       try {
         const { data: { text } } = await Tesseract.recognize(file, 'eng', {
           logger: m => {
+            // Aggiorna progress bar su riconoscimento testo
             if (m.status === 'recognizing text') {
               const progress = Math.round(m.progress * 100);
               progressBar.style.width = `${progress}%`;
@@ -97,47 +133,80 @@
           }
         });
 
+        // Testo RAW dal motore OCR
         console.log('OCR RAW TEXT:', text);
+        rawTextPre.textContent = text || '(vuoto)';
 
         // --- Pulizia testo OCR ---
-        let cleaned = text.replace(/[–—−]/g, "-")  // sostituisce trattini strani
-                          .replace(/O/g, "0")      // O -> 0
-                          .replace(/\s+/g, "");    // rimuove spazi/newline
+        let cleaned = (text || '')
+          .replace(/[–—−]/g, "-")   // sostituisce trattini strani
+          .replace(/[OOo]/g, "0")   // O/o -> 0 (numero zero)
+          .replace(/[l|I]/g, "1")   // l o I -> 1 (se utile)
+          .replace(/\s+/g, "");     // rimuove spazi e newline
+        cleanedTextPre.textContent = cleaned || '(vuoto)';
         console.log('CLEANED TEXT:', cleaned);
 
         // --- Regex flessibile per il numero d'ordine ---
-        const match = cleaned.match(/\d{3}-\d{7}-\d{7}/);
+        // formato atteso: 3 cifre - 7 cifre - 7 cifre (es. 402-4204768-5658754)
+        const match = cleaned.match(/\d{3}-?\d{7}-?\d{7}/);
 
         progressBar.style.width = '100%';
 
         if (match) {
           const orderNumber = match[0];
-          resultDiv.textContent = `Numero trovato: ${orderNumber}`;
-          statusDiv.textContent = '✅ Copiato negli appunti e generato codice a barre!';
-          
-          try { await navigator.clipboard.writeText(orderNumber); } catch(e) { console.warn('Clipboard fallita'); }
+          resultDiv.textContent = `✅ Numero trovato: ${orderNumber}`;
+          statusDiv.textContent = 'Numero copiato (se permesso) e barcode generato.';
 
-          // Mostra pulsante copia
+          // prova a copiare negli appunti (può fallire su HTTP)
+          try { await navigator.clipboard.writeText(orderNumber); } catch(e) { console.warn('Clipboard fallita', e); }
+
+          // mostra e abilita pulsante copia numero
           copyBtn.classList.remove('hidden');
-          copyBtn.onclick = () => {
-            navigator.clipboard.writeText(orderNumber);
-            statusDiv.textContent = '📋 Copiato di nuovo!';
+          copyBtn.onclick = async () => {
+            try { await navigator.clipboard.writeText(orderNumber); statusDiv.textContent = '📋 Numero copiato di nuovo!'; }
+            catch (err) { statusDiv.textContent = '⚠️ Impossibile copiare.'; }
           };
 
-          // Genera barcode
-          JsBarcode("#barcode", orderNumber, {
-            format: "CODE128",
-            lineColor: "#22c55e",
-            background: "transparent",
-            width: 2,
-            height: 60,
-            displayValue: true
-          });
-          barcodeContainer.classList.remove('hidden');
+          // genera barcode
+          try {
+            JsBarcode("#barcode", orderNumber, {
+              format: "CODE128",
+              lineColor: "#111827",
+              background: "transparent",
+              width: 2,
+              height: 60,
+              displayValue: true
+            });
+            barcodeContainer.classList.remove('hidden');
+          } catch (err) {
+            console.warn('Errore JsBarcode', err);
+          }
+
+          // mostra debug anche se trovato (utile)
+          debugArea.classList.remove('hidden');
+          copyRawBtn.classList.remove('hidden');
+          copyCleanBtn.classList.remove('hidden');
 
         } else {
+          // Nessun match: mostra tutto ciò che ha letto
           resultDiv.textContent = '❌ Nessun numero d’ordine trovato.';
-          statusDiv.textContent = '';
+          statusDiv.textContent = 'Mostro il testo RAW e quello pulito (usa copia per salvarli).';
+
+          // mostra area debug con RAW e CLEANED
+          debugArea.classList.remove('hidden');
+
+          // mostra pulsanti copia per RAW e CLEANED
+          copyRawBtn.classList.remove('hidden');
+          copyRawBtn.onclick = async () => {
+            try { await navigator.clipboard.writeText(rawTextPre.textContent); statusDiv.textContent = '📋 RAW copiato!'; }
+            catch (err) { statusDiv.textContent = '⚠️ Impossibile copiare RAW.'; }
+          };
+
+          copyCleanBtn.classList.remove('hidden');
+          copyCleanBtn.onclick = async () => {
+            try { await navigator.clipboard.writeText(cleanedTextPre.textContent); statusDiv.textContent = '📋 CLEANED copiato!'; }
+            catch (err) { statusDiv.textContent = '⚠️ Impossibile copiare CLEANED.'; }
+          };
         }
 
       } catch (error) {
